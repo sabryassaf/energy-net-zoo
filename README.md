@@ -33,8 +33,8 @@ This approach helps find stable equilibrium policies between the two agents, sim
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/CLAIR-LAB-TECHNION/EnergyNet.git
-   cd EnergyNet
+   git clone https://github.com/CLAIR-LAB-TECHNION/energy-net-zoo.git
+   cd energy-net-zoo
    ```
 
 2. Install dependencies:
