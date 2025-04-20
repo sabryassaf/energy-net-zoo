@@ -27,26 +27,46 @@ This approach helps find stable equilibrium policies between the two agents, sim
 
 ### Prerequisites
 
-- Python 3.8+
+- Python 3.10+
 - pip package manager
 
-### Setup
+### Standard Installation (Stable Version)
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/CLAIR-LAB-TECHNION/energy-net-zoo.git
-   cd energy-net-zoo
-   ```
+This installation method uses the stable version of energy-net:
 
-2. Install dependencies:
-   ```bash
-   pip install -e .
-   ```
+```bash
+git clone https://github.com/CLAIR-LAB-TECHNION/energy-net-zoo.git
+cd energy-net-zoo
+pip install -e .
+```
 
-3. Install RL-Zoo3 (if not automatically installed):
-   ```bash
-   pip install rl_zoo3
-   ```
+### Development Installation (Latest Version)
+
+To install with the latest version of energy-net from the main branch:
+
+```bash
+git clone https://github.com/CLAIR-LAB-TECHNION/energy-net-zoo.git
+cd energy-net-zoo
+pip install -e ".[dev]"
+```
+
+### Using the Development Branch
+
+Alternatively, you can use the development branch which always tracks the latest energy-net:
+
+```bash
+git clone https://github.com/CLAIR-LAB-TECHNION/energy-net-zoo.git
+cd energy-net-zoo
+git checkout dev
+pip install -e .
+```
+
+### Installing RL-Zoo3
+
+After installing the main package, install RL-Zoo3 (if not automatically installed):
+```bash
+pip install rl_zoo3
+```
 
 ## Running Training
 
