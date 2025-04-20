@@ -27,7 +27,7 @@ This approach helps find stable equilibrium policies between the two agents, sim
 
 ### Prerequisites
 
-- Python 3.8+
+- Python 3.10+
 - pip package manager
 
 ### Setup
