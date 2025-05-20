@@ -1,0 +1,1 @@
+had to chagne from sb3 2.6 to sb3 2.3 in orderd to fix the problem with gymnasium 28.1

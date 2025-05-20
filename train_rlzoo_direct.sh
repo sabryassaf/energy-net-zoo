@@ -7,7 +7,7 @@ mkdir -p logs/pcs/ppo/run_1
 mkdir -p rl-baselines3-zoo/hyperparams/ppo
 
 # Ensure our environment is on PYTHONPATH
-export PYTHONPATH=$PYTHONPATH:$(pwd)
+export PYTHONPATH=$PYTHONPATH:$(pwd)/rl-baselines3-zoo
 
 # Create or update the hyperparameter files
 cat > rl-baselines3-zoo/hyperparams/ppo/ISO-RLZoo-v0.yml << EOF
