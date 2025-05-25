@@ -28,7 +28,7 @@ SPIKE_MAGNITUDE=2.0
 usage() {
   echo "Usage: $0 [options]"
   echo "Options:"
-  echo "  --algo ALGO           Algorithm to use: PPOLag, CPO, FOCOPS, CUP, SautRL (default: $ALGO)"
+  echo "  --algo ALGO           Algorithm to use: PPOLag, CPO, FOCOPS, CUP, PPOSaute (default: $ALGO)"
   echo "  --steps NUM           Number of timesteps to train (default: $NUM_STEPS)"
   echo "  --cost-threshold VAL  Cost threshold for constraints (default: $COST_THRESHOLD)"
   echo "  --seed NUM            Random seed (default: $SEED)"
@@ -160,7 +160,7 @@ if [ "$EVAL_ONLY" = false ]; then
   echo "Use dispatch: $USE_DISPATCH"
   
   # Run training
-  python train_safe_iso.py \
+  python source/train_safe_iso.py \
     --algo $ALGO \
     --num-steps $NUM_STEPS \
     --cost-threshold $COST_THRESHOLD \
@@ -190,7 +190,7 @@ echo "Use dispatch: $USE_DISPATCH"
 echo "Stress test: $STRESS_TEST"
 
 # Run evaluation
-python evaluate_safe_iso.py \
+python source/evaluate_safe_iso.py \
   --model-path $MODEL_PATH \
   --algo $ALGO \
   --cost-threshold $COST_THRESHOLD \
@@ -203,9 +203,8 @@ python evaluate_safe_iso.py \
   --sensor-noise $SENSOR_NOISE \
   --outage-prob $OUTAGE_PROB \
   --demand-spike-prob $DEMAND_SPIKE_PROB \
-  --spike-magnitude $SPIKE_MAGNITUDE \
-  --seed $SEED \
-  --num-episodes 10
+  --spike-mag $SPIKE_MAGNITUDE \
+  --run-name "$(basename $(dirname $MODEL_PATH))"
 
 echo "Evaluation completed. Results saved to logs/eval/$ALGO/"
 

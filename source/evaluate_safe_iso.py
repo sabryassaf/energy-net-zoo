@@ -17,8 +17,12 @@ import logging
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 from typing import Dict, Any, List, Optional, Tuple
+from datetime import datetime
 
 # Import our safe ISO wrapper
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from safe_iso_wrapper import SafeISOWrapper, make_safe_iso_env
 
 # Configure logging
@@ -36,7 +40,7 @@ def parse_args():
     parser.add_argument("--model-path", type=str, required=True,
                         help="Path to the trained model")
     parser.add_argument("--algo", type=str, default="PPOLag", 
-                        choices=["PPOLag", "CPO", "FOCOPS", "CUP", "SautRL"],
+                        choices=["PPOLag", "CPO", "FOCOPS", "CUP", "PPOSaute"],
                         help="Algorithm used to train the model")
     
     # Environment parameters
@@ -67,6 +71,8 @@ def parse_args():
                         help="Random seed (default: 42)")
     parser.add_argument("--output-dir", type=str, default="logs/eval",
                         help="Directory for saving evaluation results")
+    parser.add_argument("--run-name", type=str, default=None,
+                        help="Optional run name for this evaluation (default: timestamp)")
     
     # Stress test parameters
     parser.add_argument("--stress-test", action="store_true",
@@ -186,68 +192,74 @@ def evaluate_agent(agent, env, num_episodes=10, render=False):
         "total_violations": total_violations
     }
 
-def create_agent(algo, model_path, env, seed=42):
-    """Create and load an agent - supports both OmniSafe and stable-baselines3."""
-    # Basic configuration
-    config = {
-        "train_cfgs": {
-            "device": "auto",
-            "seed": seed
-        },
-        "algo_cfgs": {
-            "steps_per_epoch": 2048,
-            "use_cost": True
-        }
+def create_agent(algo, model_path, env_id, cost_threshold, seed=42):
+    """Create and load an OmniSafe agent using the 0.5.0 API."""
+    
+    # Handle algorithm name mapping (SautRL -> PPOSaute for OmniSafe)
+    if algo == "SautRL":
+        omnisafe_algo = "PPOSaute"
+        logger.info("Mapping SautRL to PPOSaute for OmniSafe compatibility")
+    else:
+        omnisafe_algo = algo
+    
+    # Verify algorithm is supported
+    if omnisafe_algo not in omnisafe.ALGORITHMS['on-policy']:
+        raise ValueError(f"Algorithm {omnisafe_algo} not found in OmniSafe. Available: {omnisafe.ALGORITHMS['on-policy']}")
+    
+    logger.info(f"Loading OmniSafe {omnisafe_algo} model from {model_path}")
+    
+    # Create configuration for loading the model
+    custom_cfgs = {
+        "device": "auto",
+        "cost_limit": cost_threshold,
+        "use_cost": True,
     }
     
-    # First try to determine if the model is from stable-baselines3
-    if os.path.exists(model_path) and (model_path.endswith('.zip') or 
-                                       os.path.isdir(model_path) and 
-                                       any(f.endswith('.zip') for f in os.listdir(model_path))):
-        try:
-            # Try to load as a stable-baselines3 model
-            logger.info("Attempting to load model as stable-baselines3 model")
-            from stable_baselines3 import PPO
-            agent = PPO.load(model_path, env=env.wrapped_env)
-            logger.info("Successfully loaded stable-baselines3 model")
-            return agent
-        except Exception as e:
-            logger.warning(f"Failed to load as stable-baselines3 model: {e}")
+    train_terminal_cfgs = {
+        "seed": seed,
+    }
     
-    # If not stable-baselines3 or loading failed, try OmniSafe
+    # Create the agent using OmniSafe 0.5.0 API
+    agent = omnisafe.Agent(
+        algo=omnisafe_algo,
+        env_id=env_id,
+        train_terminal_cfgs=train_terminal_cfgs,
+        custom_cfgs=custom_cfgs
+    )
+    
+    # Load the trained model
+    # OmniSafe 0.5.0 might have different loading methods
     try:
-        # Create the appropriate OmniSafe agent
-        logger.info("Attempting to load model as OmniSafe model")
-        if algo == "PPOLag":
-            agent = omnisafe.PPOLag(env=env, **config)
-        elif algo == "CPO":
-            agent = omnisafe.CPO(env=env, **config)
-        elif algo == "FOCOPS":
-            agent = omnisafe.FOCOPS(env=env, **config)
-        elif algo == "CUP":
-            agent = omnisafe.CUP(env=env, **config)
-        elif algo == "SautRL":
-            agent = omnisafe.SautRL(env=env, **config)
-        else:
-            raise ValueError(f"Unsupported algorithm: {algo}")
-        
-        # Load the trained model
+        # Try the standard load method
         agent.load(model_path)
-        logger.info("Successfully loaded OmniSafe model")
-        return agent
+        logger.info("Successfully loaded OmniSafe model using load() method")
     except Exception as e:
-        logger.error(f"Failed to load OmniSafe model: {e}")
-        
-        # Final fallback - try again with stable-baselines3 but with a different approach
-        logger.info("Falling back to stable-baselines3 PPO")
+        logger.warning(f"Standard load() failed: {e}")
         try:
-            from stable_baselines3 import PPO
-            agent = PPO.load(model_path)
-            logger.info("Successfully loaded stable-baselines3 model in fallback mode")
-            return agent
+            # Try loading as a checkpoint
+            agent.load_checkpoint(model_path)
+            logger.info("Successfully loaded OmniSafe model using load_checkpoint() method")
         except Exception as e2:
-            logger.error(f"All loading methods failed. Last error: {e2}")
-            raise ValueError(f"Could not load model from {model_path} with algorithm {algo}")
+            logger.error(f"Failed to load model with both methods: load() -> {e}, load_checkpoint() -> {e2}")
+            
+            # Try to load the model weights manually if it's a PyTorch .pt file
+            if model_path.endswith('.pt') and os.path.exists(model_path):
+                logger.info("Attempting to load PyTorch state dict manually")
+                try:
+                    state_dict = torch.load(model_path, map_location="cpu")
+                    if hasattr(agent, 'actor'):
+                        agent.actor.load_state_dict(state_dict.get('actor', state_dict))
+                        logger.info("Successfully loaded actor weights from PyTorch file")
+                    elif hasattr(agent, '_algo') and hasattr(agent._algo, 'actor'):
+                        agent._algo.actor.load_state_dict(state_dict.get('actor', state_dict))
+                        logger.info("Successfully loaded actor weights via _algo from PyTorch file")
+                    else:
+                        raise ValueError("Cannot find actor network in agent")
+                except Exception as e3:
+                    logger.error(f"Manual PyTorch loading also failed: {e3}")
+                    raise ValueError(f"Could not load model from {model_path} with any method")
+    
+    return agent
 
 def plot_evaluation_results(results, output_dir):
     """Plot and save evaluation results."""
@@ -355,9 +367,23 @@ def main():
     np.random.seed(args.seed)
     torch.manual_seed(args.seed)
     
-    # Create output directory
-    output_dir = os.path.join(args.output_dir, args.algo)
+    # Create output directory with timestamp or custom run name
+    if args.run_name:
+        run_identifier = args.run_name
+    else:
+        timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        run_identifier = timestamp
+    
+    output_dir = os.path.join(args.output_dir, args.algo, run_identifier)
     os.makedirs(output_dir, exist_ok=True)
+    
+    # Also create a "latest" symlink for easy access
+    latest_dir = os.path.join(args.output_dir, args.algo, "latest")
+    if os.path.exists(latest_dir):
+        os.remove(latest_dir)
+    os.symlink(run_identifier, latest_dir)
+    
+    logger.info(f"Evaluation results will be saved to: {output_dir}")
     
     # Save arguments
     with open(os.path.join(output_dir, "eval_args.json"), "w") as f:
@@ -368,11 +394,25 @@ def main():
     if args.stress_test:
         scenarios.extend([
             "demand_noise",
-            "sensor_noise",
+            "sensor_noise", 
             "generator_outage",
             "demand_spike",
             "combined"
         ])
+    
+    # Register the safe environment (needed for evaluation)
+    env_kwargs = create_env_kwargs(args, "regular")
+    safe_env_id = f"SafeISO-{args.env_id}-v0"
+    
+    if safe_env_id not in gym.envs.registry.env_specs:
+        gym.register(
+            id=safe_env_id,
+            entry_point=lambda: make_safe_iso_env(
+                env_id=args.env_id,
+                env_kwargs=env_kwargs,
+                cost_threshold=args.cost_threshold
+            )
+        )
     
     # Run evaluations
     results = {}
@@ -393,8 +433,15 @@ def main():
             cost_threshold=args.cost_threshold
         )
         
-        # Create and load agent
-        agent = create_agent(args.algo, args.model_path, env, args.seed)
+        # Create and load agent (only once for the first scenario)
+        if scenario == scenarios[0]:
+            agent = create_agent(
+                algo=args.algo,
+                model_path=args.model_path,
+                env_id=safe_env_id,
+                cost_threshold=args.cost_threshold,
+                seed=args.seed
+            )
         
         # Evaluate agent
         scenario_results = evaluate_agent(
@@ -418,6 +465,7 @@ def main():
     # Plot and save results
     plot_evaluation_results(results, output_dir)
     logger.info(f"Evaluation results saved to {output_dir}")
+    logger.info(f"Latest results accessible via: {latest_dir}")
 
 if __name__ == "__main__":
     main() 
