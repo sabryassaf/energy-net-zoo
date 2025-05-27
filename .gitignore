@@ -30,7 +30,7 @@ logs/
 plots/
 evaluation_latest_results_*/
 runs/
-
+stress_test_results/
 # Environment, dependencies and IDE
 .env
 .venv

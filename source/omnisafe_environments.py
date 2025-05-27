@@ -25,6 +25,7 @@ from omnisafe.envs.core import CMDP, env_register
 
 from safe_iso_wrapper import SafeISOWrapper, make_safe_iso_env
 from fix_env_registration import fix_iso_env_registration
+from algorithm_specific_pcs_policy import AlgorithmSpecificPCSPolicy
 
 # Fix environment registration to use proper episode length
 fix_iso_env_registration()
@@ -185,30 +186,40 @@ def _patch_energy_net_logging():
         print(f"⚠️  Warning: Could not patch energy_net logging: {e}")
 
 
-def create_responsive_safe_iso_env(env_id="ISO-RLZoo-v0", **kwargs):
+def create_responsive_safe_iso_env(env_id="ISO-RLZoo-v0", algorithm_name=None, **kwargs):
     """
-    Create a SafeISO environment with responsive PCS policy.
+    Create a SafeISO environment with algorithm-specific responsive PCS policy.
     
-    This function creates a SafeISO environment and injects a responsive PCS policy
-    that reacts to price signals, making the environment responsive to ISO actions.
+    This function creates a SafeISO environment and injects an algorithm-specific PCS policy
+    that reacts to price signals with behavior tailored to each Safe RL algorithm.
     
     Args:
         env_id: Environment ID (default: "ISO-RLZoo-v0")
+        algorithm_name: Name of the Safe RL algorithm (for algorithm-specific behavior)
         **kwargs: Additional arguments passed to make_safe_iso_env
         
     Returns:
-        SafeISO environment with responsive PCS policy
+        SafeISO environment with algorithm-specific responsive PCS policy
     """
     # Apply logging patch to fix energy_net TypeError
     _patch_energy_net_logging()
     
-    # Create responsive PCS policy with configurable parameters
-    responsive_pcs = ResponsivePCSPolicy(
-        charge_threshold=kwargs.pop('pcs_charge_threshold', 3.0),
-        discharge_threshold=kwargs.pop('pcs_discharge_threshold', 7.0),
-        max_charge_rate=kwargs.pop('pcs_max_charge_rate', 5.0),
-        max_discharge_rate=kwargs.pop('pcs_max_discharge_rate', 5.0)
-    )
+    # Create algorithm-specific PCS policy
+    if algorithm_name:
+        responsive_pcs = AlgorithmSpecificPCSPolicy(
+            algorithm_name=algorithm_name,
+            base_seed=kwargs.pop('pcs_base_seed', 42)
+        )
+        print(f"✅ Created algorithm-specific PCS policy for {algorithm_name}")
+    else:
+        # Fallback to original ResponsivePCSPolicy for backward compatibility
+        responsive_pcs = ResponsivePCSPolicy(
+            charge_threshold=kwargs.pop('pcs_charge_threshold', 3.0),
+            discharge_threshold=kwargs.pop('pcs_discharge_threshold', 7.0),
+            max_charge_rate=kwargs.pop('pcs_max_charge_rate', 5.0),
+            max_discharge_rate=kwargs.pop('pcs_max_discharge_rate', 5.0)
+        )
+        print("✅ Created standard responsive PCS policy (no algorithm specified)")
     
     # Create the base SafeISO environment
     env = make_safe_iso_env(env_id=env_id, **kwargs)
@@ -260,6 +271,7 @@ class SafeISOCMDP(CMDP):
         cost_type: str = "CONSTANT",
         use_dispatch: bool = False,
         max_episode_steps: int = 500,
+        algorithm_name: str = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(env_id, **kwargs)
@@ -283,6 +295,7 @@ class SafeISOCMDP(CMDP):
         # Use the responsive SafeISO environment that fixes action-invariance
         self._env = create_responsive_safe_iso_env(
             env_id="ISO-RLZoo-v0",
+            algorithm_name=algorithm_name,
             env_kwargs=env_kwargs,
             cost_threshold=cost_threshold,
             max_episode_steps=max_episode_steps
@@ -400,9 +413,10 @@ def make_omnisafe_iso_env(
     cost_type: str = "CONSTANT", 
     use_dispatch: bool = False,
     max_episode_steps: int = 500,
+    algorithm_name: str = None,
     **kwargs: Any
 ) -> SafeISOCMDP:
-    """Factory function to create OmniSafe-compatible ISO environment with responsive PCS policy."""
+    """Factory function to create OmniSafe-compatible ISO environment with algorithm-specific responsive PCS policy."""
     return SafeISOCMDP(
         env_id=env_id,
         cost_threshold=cost_threshold,
@@ -411,6 +425,7 @@ def make_omnisafe_iso_env(
         cost_type=cost_type,
         use_dispatch=use_dispatch,
         max_episode_steps=max_episode_steps,
+        algorithm_name=algorithm_name,
         **kwargs
     )
 

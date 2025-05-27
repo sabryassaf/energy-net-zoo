@@ -6,7 +6,7 @@ set -e  # Exit on any error
 
 # Default parameters
 MODELS_DIR="logs/safe_iso"
-OUTPUT_DIR="evaluation_results"
+OUTPUT_DIR="evaluations"
 NUM_EPISODES=10
 SEED=42
 COST_THRESHOLD=25.0

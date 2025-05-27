@@ -6,7 +6,7 @@ set -e
 
 # Default parameters
 RESULTS_DIR=""
-OUTPUT_DIR="plots"
+OUTPUT_DIR=""  # Will be set to same as RESULTS_DIR if not specified
 PLOT_FORMAT="png"
 DPI=300
 
@@ -34,7 +34,7 @@ while [[ $# -gt 0 ]]; do
             echo ""
             echo "Options:"
             echo "  --results-dir DIR     Directory containing evaluation results (auto-detected if not specified)"
-            echo "  --output-dir DIR      Directory for plot outputs (default: plots)"
+            echo "  --output-dir DIR      Directory for plot outputs (default: same as results directory)"
             echo "  --format FORMAT       Plot format: png, pdf, svg (default: png)"
             echo "  --dpi DPI            Plot resolution (default: 300)"
             echo "  --help               Show this help message"
@@ -57,6 +57,12 @@ if [ -z "$RESULTS_DIR" ]; then
         exit 1
     fi
     echo "Auto-detected results directory: $RESULTS_DIR"
+fi
+
+# Set output directory to same as results directory if not specified
+if [ -z "$OUTPUT_DIR" ]; then
+    OUTPUT_DIR="$RESULTS_DIR"
+    echo "Output directory set to: $OUTPUT_DIR"
 fi
 
 # Check if results directory exists
@@ -393,11 +399,15 @@ def create_summary_report(summary_data, detailed_data, output_dir):
 def main():
     parser = argparse.ArgumentParser(description='Plot SafeISO evaluation results')
     parser.add_argument('results_dir', help='Directory containing evaluation results')
-    parser.add_argument('--output-dir', default='plots', help='Output directory for plots')
+    parser.add_argument('--output-dir', help='Output directory for plots (default: same as results directory)')
     parser.add_argument('--format', default='png', choices=['png', 'pdf', 'svg'], help='Plot format')
     parser.add_argument('--dpi', type=int, default=300, help='Plot resolution')
     
     args = parser.parse_args()
+    
+    # Set output directory to same as results directory if not specified
+    if not args.output_dir:
+        args.output_dir = args.results_dir
     
     print("Loading evaluation data...")
     summary_data, detailed_data = load_evaluation_data(args.results_dir)
