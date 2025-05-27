@@ -27,6 +27,9 @@ logs/
 *.csv
 .tensorboard-log/
 .monitor.csv
+plots/
+evaluation_latest_results_*/
+runs/
 
 # Environment, dependencies and IDE
 .env

@@ -91,6 +91,10 @@ class SafeISOWrapper(SafeEnv):
         # Create the actual environment
         self.wrapped_env = gym.make(env_id, **env_kwargs)
         
+        # Override max_episode_steps if provided in env_kwargs
+        if 'max_episode_steps' in env_kwargs:
+            self._override_max_episode_steps(env_kwargs['max_episode_steps'])
+        
         # Set up cost threshold
         self.cost_threshold = cost_threshold
         
@@ -129,11 +133,32 @@ class SafeISOWrapper(SafeEnv):
         # Initialize the episode state
         self.episode_state = EpisodeState()
         
+        # Set up action and observation spaces from wrapped environment
+        self._action_space = self.wrapped_env.action_space
+        self._observation_space = self.wrapped_env.observation_space
+        
+        # Fix Monitor wrapper reset state issue
+        self._fix_monitor_wrapper_state()
+        
         logger.info(f"SafeISOWrapper initialized with cost threshold: {self.cost_threshold}")
+    
+    @property
+    def action_space(self):
+        """Action space of the environment."""
+        return self._action_space
+    
+    @property
+    def observation_space(self):
+        """Observation space of the environment."""
+        return self._observation_space
     
     def reset(self, **kwargs) -> Tuple[np.ndarray, Dict[str, Any]]:
         """Reset the environment and return the initial observation."""
         obs, info = self.wrapped_env.reset(**kwargs)
+        
+        # Ensure info is a dictionary
+        if not isinstance(info, dict):
+            info = {}
         
         # Reset cost tracking
         self.current_episode_cost = 0.0
@@ -158,6 +183,9 @@ class SafeISOWrapper(SafeEnv):
         Take a step in the environment using the given action.
         Computes safety costs based on the state after the step.
         """
+        # Ensure Monitor wrapper is in correct state before stepping
+        self._fix_monitor_wrapper_state()
+        
         # Take a step in the wrapped environment
         obs, reward, terminated, truncated, info = self.wrapped_env.step(action)
         
@@ -205,6 +233,10 @@ class SafeISOWrapper(SafeEnv):
         ])
         info["cost"] = cost
         info["constraint_violations"] = self.episode_constraint_violations.copy()
+        
+        # Add final_observation for OmniSafe when episode ends
+        if terminated or truncated:
+            info["final_observation"] = obs
         
         return obs, reward, terminated, truncated, info
     
@@ -280,12 +312,49 @@ class SafeISOWrapper(SafeEnv):
     def close(self) -> None:
         """Close the environment."""
         return self.wrapped_env.close()
+    
+    def _override_max_episode_steps(self, max_episode_steps: int) -> None:
+        """Override the max_episode_steps in the underlying environment controller."""
+        # Walk through the wrapper chain to find the base environment
+        env = self.wrapped_env
+        while hasattr(env, 'env'):
+            env = env.env
+        
+        # Check if this is an EnergyNetV0 environment with a controller
+        if hasattr(env, 'controller') and hasattr(env.controller, 'max_steps_per_episode'):
+            old_value = env.controller.max_steps_per_episode
+            env.controller.max_steps_per_episode = max_episode_steps
+            logger.info(f"Overrode max_steps_per_episode: {old_value} -> {max_episode_steps}")
+        else:
+            logger.warning("Could not find controller.max_steps_per_episode to override")
+    
+    def _fix_monitor_wrapper_state(self) -> None:
+        """Fix Monitor wrapper reset state to prevent 'needs reset' errors."""
+        # Walk through the wrapper chain to find the Monitor wrapper specifically
+        env = self.wrapped_env
+        monitor_found = False
+        while hasattr(env, 'env'):
+            # Check if this is specifically the Monitor wrapper from stable_baselines3
+            if (hasattr(env, 'needs_reset') and 
+                type(env).__name__ == 'Monitor' and 
+                'stable_baselines3' in str(type(env).__module__)):
+                # Found the Monitor wrapper, set it to not need reset
+                env.needs_reset = False
+                monitor_found = True
+                logger.debug(f"Fixed Monitor wrapper reset state: {type(env).__name__}")
+                break
+            env = env.env
+        
+        if not monitor_found:
+            logger.warning("Monitor wrapper not found in environment chain")
+
 
 def make_safe_iso_env(
     env_id: str = "ISO-RLZoo-v0",
     env_kwargs: Optional[Dict[str, Any]] = None,
     cost_threshold: float = 25.0,
     normalize_reward: bool = True,
+    max_episode_steps: int = 500,
     **kwargs
 ) -> SafeISOWrapper:
     """
@@ -296,10 +365,18 @@ def make_safe_iso_env(
         env_kwargs: Additional keyword arguments for the environment
         cost_threshold: The threshold for considering a cost violation
         normalize_reward: Whether to normalize rewards
+        max_episode_steps: Maximum number of steps per episode
         
     Returns:
         A SafeISOWrapper instance
     """
+    # Ensure env_kwargs is a dictionary
+    if env_kwargs is None:
+        env_kwargs = {}
+    
+    # Add max_episode_steps to env_kwargs to pass to the underlying environment
+    env_kwargs['max_episode_steps'] = max_episode_steps
+    
     return SafeISOWrapper(
         env_id=env_id,
         env_kwargs=env_kwargs,
