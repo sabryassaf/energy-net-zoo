@@ -22,12 +22,12 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 # Import OmniSafe first
 import omnisafe
 
-# Fix environment registration first
-from fix_env_registration import fix_iso_env_registration
-fix_iso_env_registration()
+# Register base environments first
+from base_env_register import register_base_environments
+register_base_environments(max_episode_steps=500)
 
-# Then import our environment to ensure registration happens
-from omnisafe_environments import SafeISOCMDP, make_omnisafe_iso_env
+# Import OmniSafe environments - registration handled by @env_register decorator
+from omniSafe_env_register import SafeISOCMDP, make_omnisafe_iso_env
 
 logging.basicConfig(
     level=logging.INFO,

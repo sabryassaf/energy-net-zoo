@@ -127,7 +127,7 @@ from datetime import datetime
 # Add source directory to path
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'source'))
 
-from omnisafe_environments import create_responsive_safe_iso_env
+from omniSafe_env_register import create_responsive_safe_iso_env
 
 def load_model(model_path):
     """Load a trained model from checkpoint."""

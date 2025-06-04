@@ -47,7 +47,7 @@ for i in "${!ALGORITHMS[@]}"; do
     echo "Started at: $(date)"
     
     # Run the training directly (no srun needed inside batch job)
-    ./source/run_safe_iso.sh --algo $algo --steps $STEPS --cost-threshold $COST_THRESHOLD --seed $SEED
+    ./source/omniSafe_utils/run_safe_iso.sh --algo $algo --steps $STEPS --cost-threshold $COST_THRESHOLD --seed $SEED
     
     if [ $? -eq 0 ]; then
         echo "SUCCESS: $algo training completed at $(date)"

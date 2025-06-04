@@ -100,7 +100,7 @@ echo "Use dispatch: $USE_DISPATCH"
 echo ""
 
 # Run training
-python source/train_safe_iso.py \
+python source/omniSafe_utils/train_safe_iso.py \
   --algo $ALGO \
   --num-steps $NUM_STEPS \
   --cost-threshold $COST_THRESHOLD \

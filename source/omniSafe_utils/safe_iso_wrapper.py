@@ -75,8 +75,9 @@ class SafeISOWrapper(SafeEnv):
             cost_threshold: The threshold for considering a cost violation
             normalize_reward: Whether to normalize rewards
         """
-        # Create a compatible initialization depending on the SafeEnv type we got
+        # Extract constraint config from env_kwargs
         env_kwargs = env_kwargs or {}
+        constraint_config = env_kwargs.pop('constraint_config', {})
         
         # Store the environment ID for reference
         self.env_id = env_id
@@ -101,19 +102,19 @@ class SafeISOWrapper(SafeEnv):
         # Initialize the parent class first to handle observation and action spaces
         super().__init__(env_id)
         
-        # Initialize constraints
+        # Initialize constraints with configurable parameters
         self.cost_function_kwargs = {
-            "voltage_cost_weight": 1.0,
-            "frequency_cost_weight": 1.0,
-            "battery_cost_weight": 1.0,
-            "supply_demand_cost_weight": 2.0,
-            "voltage_limit_min": 0.95,  # p.u.
-            "voltage_limit_max": 1.05,  # p.u.
-            "frequency_limit_min": 49.8,  # Hz
-            "frequency_limit_max": 50.2,  # Hz
-            "battery_soc_min": 0.1,     # 10%
-            "battery_soc_max": 0.9,     # 90%
-            "supply_demand_imbalance_threshold": 10.0,  # MW
+            "voltage_cost_weight": constraint_config.get("voltage_cost_weight", 1.0),
+            "frequency_cost_weight": constraint_config.get("frequency_cost_weight", 1.0),
+            "battery_cost_weight": constraint_config.get("battery_cost_weight", 1.0),
+            "supply_demand_cost_weight": constraint_config.get("supply_demand_cost_weight", 2.0),
+            "voltage_limit_min": constraint_config.get("voltage_limit_min", 0.95),
+            "voltage_limit_max": constraint_config.get("voltage_limit_max", 1.05),
+            "frequency_limit_min": constraint_config.get("frequency_limit_min", 49.8),
+            "frequency_limit_max": constraint_config.get("frequency_limit_max", 50.2),
+            "battery_soc_min": constraint_config.get("battery_soc_min", 0.1),
+            "battery_soc_max": constraint_config.get("battery_soc_max", 0.9),
+            "supply_demand_imbalance_threshold": constraint_config.get("supply_demand_imbalance_threshold", 10.0),
         }
         
         # Additional tracking variables

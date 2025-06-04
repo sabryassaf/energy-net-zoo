@@ -16,9 +16,9 @@ from pathlib import Path
 # Add source directory to path for imports
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from omnisafe_environments import make_omnisafe_iso_env
+from omniSafe_env_register import make_omnisafe_iso_env
 from stress_test_scenarios import ImprovedStressTestScenarios, AlgorithmSpecificSafetyAnalyzer
-from algorithm_specific_pcs_policy import AlgorithmSpecificPCSPolicy
+from responsive_pcs_policy import ResponsivePCSPolicy
 
 class IntegratedStressTestSystem:
     """
@@ -46,7 +46,7 @@ class IntegratedStressTestSystem:
         self.algorithms = ['PPOLag', 'CPO', 'FOCOPS', 'CUP', 'PPOSaute']
         self.scenario_names = list(self.stress_scenarios.scenarios.keys())
         
-        print(f"🔥 IMPROVED COMPREHENSIVE STRESS TESTING SYSTEM")
+        print(f"IMPROVED COMPREHENSIVE STRESS TESTING SYSTEM")
         print(f"============================================================")
         print(f"Output directory: {self.results_dir}")
         print(f"Algorithms: {', '.join(self.algorithms)}")
@@ -73,7 +73,7 @@ class IntegratedStressTestSystem:
                 algo_class = ALGORITHMS[algorithm]
                 
                 # Create a dummy environment to get spaces
-                dummy_env = make_omnisafe_iso_env(algorithm_name=algorithm)
+                dummy_env = make_omnisafe_iso_env()
                 
                 # Initialize algorithm with minimal config
                 algo = algo_class(
@@ -96,30 +96,29 @@ class IntegratedStressTestSystem:
                 return algo
                 
             else:
-                print(f"⚠️  Algorithm {algorithm} not found in OmniSafe ALGORITHMS")
+                print(f"Algorithm {algorithm} not found in OmniSafe ALGORITHMS")
                 return None
                 
         except Exception as e:
-            print(f"⚠️  Could not load OmniSafe model for {algorithm}: {e}")
+            print(f"Could not load OmniSafe model for {algorithm}: {e}")
             return None
     
     def create_algorithm_environment(self, algorithm: str, scenario_params: Dict) -> object:
         """
-        Create algorithm-specific environment with stress scenario parameters.
+        Create environment with stress scenario parameters.
+        All algorithms use the same standard environment for fair comparison.
         
         Args:
-            algorithm: Algorithm name
+            algorithm: Algorithm name (kept for compatibility)
             scenario_params: Stress scenario parameters
             
         Returns:
             Configured environment
         """
-        # Create environment with algorithm-specific PCS policy
+        # Create environment with standard responsive PCS policy
         env = make_omnisafe_iso_env(
-            algorithm_name=algorithm,
             cost_threshold=10.0,  # Standard safety threshold
-            max_episode_steps=50,
-            pcs_base_seed=scenario_params.get('seed', self.base_seed)
+            max_episode_steps=50
         )
         
         # Store scenario parameters in environment for stress injection
@@ -152,7 +151,7 @@ class IntegratedStressTestSystem:
         env._stress_type = scenario_name
         env._stress_severity = params['severity']
         
-        print(f"   🔥 INJECTING STRESS: {scenario_name} at timestep {timestep} with severity {params['severity']:.3f}")
+        print(f"INJECTING STRESS: {scenario_name} at timestep {timestep} with severity {params['severity']:.3f}")
     
     def apply_stress_to_info(self, info: dict, stress_type: str, severity: float) -> dict:
         """
@@ -213,7 +212,7 @@ class IntegratedStressTestSystem:
         Returns:
             Evaluation results dictionary
         """
-        print(f"🔥 Stress Test: {algorithm} - {scenario_name}")
+        print(f"Stress Test: {algorithm} - {scenario_name}")
         
         # Generate algorithm-specific scenario parameters
         scenario_params = self.stress_scenarios.generate_algorithm_specific_scenario(
@@ -296,7 +295,7 @@ class IntegratedStressTestSystem:
                             cost = stress_cost
                             info['violations'] = step_violations
                             violation_types = list(step_violations.keys())
-                            print(f"     💥 STRESS VIOLATION DETECTED! Cost: {stress_cost:.3f}, Types: {violation_types}")
+                            print(f"STRESS VIOLATION DETECTED! Cost: {stress_cost:.3f}, Types: {violation_types}")
                     
                     episode_reward += reward.item() if hasattr(reward, 'item') else reward
                     episode_cost += cost.item() if hasattr(cost, 'item') else cost
@@ -349,10 +348,10 @@ class IntegratedStressTestSystem:
                 'episode_costs': episode_costs
             }
             
-            print(f"   📊 Violations: {total_violations}, Cost: {np.mean(episode_costs):.3f}")
+            print(f"Violations: {total_violations}, Cost: {np.mean(episode_costs):.3f}")
             
         except Exception as e:
-            print(f"   ❌ Error during evaluation: {e}")
+            print(f"Error during evaluation: {e}")
             results = {
                 'algorithm': algorithm,
                 'scenario': scenario_name,
@@ -378,7 +377,7 @@ class IntegratedStressTestSystem:
         # Look for models in runs directory
         runs_dir = Path("runs")
         if not runs_dir.exists():
-            print("⚠️  No runs directory found, using dummy model paths")
+            print("No runs directory found, using dummy model paths")
             return {algo: f"dummy_model_{algo}.pt" for algo in self.algorithms}
         
         for algorithm in self.algorithms:
@@ -392,12 +391,12 @@ class IntegratedStressTestSystem:
                 if model_files:
                     latest_model = max(model_files, key=lambda x: int(x.stem.split('-')[1]))
                     model_paths[algorithm] = str(latest_model)
-                    print(f"📁 Found model for {algorithm}: {latest_model}")
+                    print(f"Found model for {algorithm}: {latest_model}")
                 else:
-                    print(f"⚠️  No model files found for {algorithm}")
+                    print(f"No model files found for {algorithm}")
                     model_paths[algorithm] = f"dummy_model_{algorithm}.pt"
             else:
-                print(f"⚠️  No runs found for {algorithm}")
+                print(f"No runs found for {algorithm}")
                 model_paths[algorithm] = f"dummy_model_{algorithm}.pt"
         
         return model_paths
@@ -412,7 +411,7 @@ class IntegratedStressTestSystem:
         Returns:
             Complete results dictionary
         """
-        print(f"🚀 Starting comprehensive stress test...")
+        print(f"Starting comprehensive stress test...")
         print(f"Testing {len(self.algorithms)} algorithms across {len(self.scenario_names)} scenarios")
         print()
         
@@ -424,7 +423,7 @@ class IntegratedStressTestSystem:
         
         # Test each algorithm
         for algorithm in self.algorithms:
-            print(f"🤖 Testing Algorithm: {algorithm}")
+            print(f"Testing Algorithm: {algorithm}")
             print("-" * 40)
             
             model_path = model_paths.get(algorithm, f"dummy_model_{algorithm}.pt")
@@ -601,7 +600,7 @@ class IntegratedStressTestSystem:
             f.write("3. Stochastic scenarios provide varied stress testing conditions\n")
             f.write("4. Our enhanced safety constraint system is working correctly\n")
         
-        print(f"📋 Comprehensive stress test report saved: {report_file}")
+        print(f"Comprehensive stress test report saved: {report_file}")
 
 def main():
     """Main function to run improved comprehensive stress testing."""
@@ -631,8 +630,8 @@ def main():
     # Run comprehensive stress test
     results = stress_test.run_comprehensive_stress_test(num_episodes=args.episodes)
     
-    print(f"\n🎉 Improved comprehensive stress testing completed!")
-    print(f"📁 Results saved in: {stress_test.results_dir}")
+    print(f"\nImproved comprehensive stress testing completed!")
+    print(f"Results saved in: {stress_test.results_dir}")
 
 if __name__ == "__main__":
     main() 

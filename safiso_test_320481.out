@@ -1,0 +1,61 @@
+Loading conda environment...
+=== SafeISO Framework SLURM Testing Started ===
+Job ID: 320481
+Node: lambda2
+Python version: Python 3.10.17
+Working directory: /home/sleemann/energy-net-zoo
+Date: Mon Jun  2 20:36:43 IDT 2025
+==================================
+
+1. Testing configuration system...
+ALL AVAILABLE CONFIGURATIONS
+============================================================
+
+PREDEFINED CONFIGURATIONS:
+Available Experiment Configurations:
+==================================================
+baseline             - Fair comparison with identical PCS parameters for all algorithms
+   Episodes: 20, Seeds: 5
+   PCS Mode: uniform
+   Algorithms: 5
+
+stress               - Intensive stress testing across all scenarios
+   Episodes: 25, Seeds: 5
+   PCS Mode: uniform
+   Algorithms: 5
+
+algorithm_specific   - Test with algorithm-specific PCS parameters
+   Episodes: 15, Seeds: 5
+   PCS Mode: custom
+   Algorithms: 5
+
+quick                - Fast configuration for testing and debugging
+   Episodes: 5, Seeds: 2
+   PCS Mode: uniform
+   Algorithms: 2
+
+
+SAVED CONFIGURATIONS:
+No saved configurations found.
+✅ Configuration system working
+
+2. Running quick smoke test with SLURM...
+
+3. Testing strict safety constraints with SLURM...
+
+4. Testing high volatility pricing with SLURM...
+
+5. Running baseline experiment with SLURM...
+
+=== Test Results Summary ===
+Configuration test: ✅ PASSED
+Quick test: ❌ FAILED
+Strict safety: ❌ FAILED
+High volatility: ❌ FAILED
+Baseline experiment: ❌ FAILED
+
+=== Results Validation ===
+❌ No results directory found
+
+=== Final Status ===
+⚠️  4 test(s) failed. Check logs above.
